@@ -60,6 +60,14 @@ typedef NS_ERROR_ENUM(Curve25519KitErrorDomain, Curve25519KitError){
  */
 + (ECKeyPair *)generateKeyPair;
 
++ (ECKeyPair*)generateKeyPairBySeed:(unsigned char*)seed;
+
++ (NSData*)signatures:(NSData*)secretKey message:(NSData*)message;
+
++ (NSData*)cryptoHashSha512:(NSData*)publicKey;
+
++ (void)cryptoHashSha512:(unsigned char*)hash publicKey:(unsigned char*)publicKey;
+
 @end
 
 NS_ASSUME_NONNULL_END

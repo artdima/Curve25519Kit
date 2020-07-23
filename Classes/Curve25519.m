@@ -6,6 +6,9 @@
 #import <SignalCoreKit/OWSAsserts.h>
 #import <SignalCoreKit/Randomness.h>
 #import <SignalCoreKit/SCKExceptionWrapper.h>
+#import "ge.h"
+#import "crypto_hash_sha512.h"
+#import "crypto_sign.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -191,6 +194,56 @@ extern int curve25519_sign(unsigned char *signature_out, /* 64 bytes */
     curve25519_donna(sharedSecretData.mutableBytes, privateKey.bytes, publicKey.bytes);
 
     return [sharedSecretData copy];
+}
+
++(ECKeyPair*)generateKeyPairBySeed:(unsigned char*)seed {
+    
+    ECKeyPair* keyPair = [[ECKeyPair alloc] init];
+    
+    unsigned char hash[64];
+    crypto_hash_sha512(hash, seed, ECCKeyLength);
+    memcpy(keyPair->privateKey, hash, ECCKeyLength);
+    keyPair->privateKey[0]  &= 248;
+    keyPair->privateKey[31] &= 127;
+    keyPair->privateKey[31] |= 64;
+    
+    static const uint8_t basepoint[ECCKeyLength] = {9};
+    curve25519_donna(keyPair->publicKey, keyPair->privateKey, basepoint);
+    
+    ge_p3 A;
+    ge_scalarmult_base(&A, keyPair->privateKey);
+    ge_p3_tobytes(keyPair->publicKey, &A);
+    
+    return keyPair;
+}
+
++(ECKeyPair*)generateKeyPairBySeed:(unsigned char*)seed {
+    return [ECKeyPair generateKeyPairBySeed:seed];
+}
+
++ (NSData*)signatures:(NSData*)secretKey message:(NSData*)message {
+    const unsigned char *m = [message bytes];
+    unsigned long long mlen = [message length];
+    const unsigned char *sk = [secretKey bytes];
+    unsigned long long smlen_p;
+    NSMutableData *sigData = [NSMutableData dataWithLength:crypto_sign_BYTES + mlen];
+    unsigned char *sig = [sigData mutableBytes];
+    crypto_sign(sig, &smlen_p, m, mlen, sk);
+    NSMutableData *outData = [NSMutableData dataWithLength:crypto_sign_BYTES];
+    unsigned char *outD = [outData mutableBytes];
+    memcpy(outD, sig, crypto_sign_BYTES);
+    return outData;
+}
+
++ (NSData*)cryptoHashSha512:(NSData*)publicKey {
+    NSMutableData *outData = [NSMutableData dataWithLength:64];
+    unsigned char *hash = [outData mutableBytes];
+    crypto_hash_sha512(hash, [publicKey bytes], ECCKeyLength);
+    return outData;
+}
+
++ (void)cryptoHashSha512:(unsigned char*)hash publicKey:(unsigned char*)publicKey {
+    crypto_hash_sha512(hash, publicKey, ECCKeyLength);
 }
 
 @end
