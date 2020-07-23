@@ -14,6 +14,8 @@ typedef NS_ERROR_ENUM(Curve25519KitErrorDomain, Curve25519KitError){
     Curve25519KitError_InvalidKeySize = 1
 };
 
+#pragma mark - For Signal
+
 @interface ECKeyPair : NSObject <NSSecureCoding>
 
 @property (atomic, readonly) NSData *publicKey;
@@ -30,6 +32,18 @@ typedef NS_ERROR_ENUM(Curve25519KitErrorDomain, Curve25519KitError){
                                          error:(NSError **)error NS_DESIGNATED_INITIALIZER;
 
 @end
+
+#pragma mark - For Channels
+
+@interface ECKeyPairChannels : NSObject <NSSecureCoding> {
+    uint8_t publicKey [ECCKeyLength];
+    uint8_t privateKey[ECCKeyLength];
+}
+
+-(NSData*) publicKey;
+
+@end
+
 
 #pragma mark -
 
@@ -60,7 +74,9 @@ typedef NS_ERROR_ENUM(Curve25519KitErrorDomain, Curve25519KitError){
  */
 + (ECKeyPair *)generateKeyPair;
 
-+ (ECKeyPair*)generateKeyPairBySeed:(unsigned char*)seed;
+#pragma mark - For Channels
+
++ (ECKeyPairChannels*)generateKeyPairBySeed:(unsigned char*)seed;
 
 + (NSData*)signatures:(NSData*)secretKey message:(NSData*)message;
 

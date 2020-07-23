@@ -145,6 +145,69 @@ extern int curve25519_sign(unsigned char *signature_out, /* 64 bytes */
 
 @end
 
+
+#pragma mark - For Channels
+
+@implementation ECKeyPairChannels
+
++(ECKeyPairChannels*)generateKeyPairBySeed:(unsigned char*)seed {
+    
+    ECKeyPairChannels* keyPair = [[ECKeyPairChannels alloc] init];
+    
+    unsigned char hash[64];
+    crypto_hash_sha512(hash, seed, ECCKeyLength);
+    memcpy(keyPair->privateKey, hash, ECCKeyLength);
+    keyPair->privateKey[0]  &= 248;
+    keyPair->privateKey[31] &= 127;
+    keyPair->privateKey[31] |= 64;
+    
+    static const uint8_t basepoint[ECCKeyLength] = {9};
+    curve25519_donna(keyPair->publicKey, keyPair->privateKey, basepoint);
+    
+    ge_p3 A;
+    ge_scalarmult_base(&A, keyPair->privateKey);
+    ge_p3_tobytes(keyPair->publicKey, &A);
+    
+    return keyPair;
+}
+
++ (BOOL)supportsSecureCoding{
+    return YES;
+}
+
+-(NSData*) publicKey {
+    return [NSData dataWithBytes:self->publicKey length:32];
+}
+
+-(void)encodeWithCoder:(NSCoder *)coder {
+    [coder encodeBytes:self->publicKey length:ECCKeyLength forKey:TSECKeyPairPublicKey];
+    [coder encodeBytes:self->privateKey length:ECCKeyLength forKey:TSECKeyPairPrivateKey];
+}
+
+-(nullable id)initWithCoder:(NSCoder *)coder {
+    self = [super init];
+    if (self) {
+        NSUInteger returnedLength = 0;
+        const uint8_t *returnedBuffer = NULL;
+        // De-serialize public key
+        returnedBuffer = [coder decodeBytesForKey:TSECKeyPairPublicKey returnedLength:&returnedLength];
+        if (returnedLength != ECCKeyLength) {
+            return nil;
+        }
+        memcpy(self->publicKey, returnedBuffer, ECCKeyLength);
+        
+        // De-serialize private key
+        returnedBuffer = [coder decodeBytesForKey:TSECKeyPairPrivateKey returnedLength:&returnedLength];
+        if (returnedLength != ECCKeyLength) {
+            return nil;
+        }
+        memcpy(self->privateKey, returnedBuffer, ECCKeyLength);
+    }
+    return self;
+}
+
+@end
+
 #pragma mark -
 
 @implementation Curve25519
@@ -196,29 +259,10 @@ extern int curve25519_sign(unsigned char *signature_out, /* 64 bytes */
     return [sharedSecretData copy];
 }
 
-+(ECKeyPair*)generateKeyPairBySeed:(unsigned char*)seed {
-    
-    ECKeyPair* keyPair = [[ECKeyPair alloc] init];
-    
-    unsigned char hash[64];
-    crypto_hash_sha512(hash, seed, ECCKeyLength);
-    memcpy(keyPair->privateKey, hash, ECCKeyLength);
-    keyPair->privateKey[0]  &= 248;
-    keyPair->privateKey[31] &= 127;
-    keyPair->privateKey[31] |= 64;
-    
-    static const uint8_t basepoint[ECCKeyLength] = {9};
-    curve25519_donna(keyPair->publicKey, keyPair->privateKey, basepoint);
-    
-    ge_p3 A;
-    ge_scalarmult_base(&A, keyPair->privateKey);
-    ge_p3_tobytes(keyPair->publicKey, &A);
-    
-    return keyPair;
-}
+#pragma mark - For Channels
 
-+(ECKeyPair*)generateKeyPairBySeed:(unsigned char*)seed {
-    return [ECKeyPair generateKeyPairBySeed:seed];
++(ECKeyPairChannels*)generateKeyPairBySeed:(unsigned char*)seed {
+    return [ECKeyPairChannels generateKeyPairBySeed:seed];
 }
 
 + (NSData*)signatures:(NSData*)secretKey message:(NSData*)message {
