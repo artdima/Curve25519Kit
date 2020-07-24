@@ -21,7 +21,6 @@ Pod::Spec.new do |spec|
   spec.ios.deployment_target = "10.0"
 
   spec.dependency 'CocoaLumberjack'
-  spec.dependency 'SignalCoreKit'
 
   spec.test_spec 'Tests' do |test_spec|
     test_spec.source_files = 'BuildTests/BuildTestsTests/**/*.{h,m,swift}'
